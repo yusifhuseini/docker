@@ -5,21 +5,25 @@ services:
       STORAGE_PATH: /var/lib/openvas/22.04/vt-data/nasl
     volumes:
       - vt_data_vol:/mnt
+    network_mode: host
 
   notus-data:
     image: registry.community.greenbone.net/community/notus-data
     volumes:
       - notus_data_vol:/mnt
+    network_mode: host
 
   scap-data:
     image: registry.community.greenbone.net/community/scap-data
     volumes:
       - scap_data_vol:/mnt
+    network_mode: host
 
   cert-bund-data:
     image: registry.community.greenbone.net/community/cert-bund-data
     volumes:
       - cert_data_vol:/mnt
+    network_mode: host
 
   dfn-cert-data:
     image: registry.community.greenbone.net/community/dfn-cert-data
@@ -27,11 +31,13 @@ services:
       - cert_data_vol:/mnt
     depends_on:
       - cert-bund-data
+    network_mode: host
 
   data-objects:
     image: registry.community.greenbone.net/community/data-objects
     volumes:
       - data_objects_vol:/mnt
+    network_mode: host
 
   report-formats:
     image: registry.community.greenbone.net/community/report-formats
@@ -39,17 +45,20 @@ services:
       - data_objects_vol:/mnt
     depends_on:
       - data-objects
+    network_mode: host
 
   gpg-data:
     image: registry.community.greenbone.net/community/gpg-data
     volumes:
       - gpg_data_vol:/mnt
+    network_mode: host
 
   redis-server:
     image: registry.community.greenbone.net/community/redis-server
     restart: on-failure
     volumes:
       - redis_socket_vol:/run/redis/
+    network_mode: host
 
   pg-gvm:
     image: registry.community.greenbone.net/community/pg-gvm:stable
@@ -57,6 +66,7 @@ services:
     volumes:
       - psql_data_vol:/var/lib/postgresql
       - psql_socket_vol:/var/run/postgresql
+    network_mode: host
 
   gvmd:
     image: registry.community.greenbone.net/community/gvmd:stable
@@ -84,6 +94,7 @@ services:
         condition: service_completed_successfully
       report-formats:
         condition: service_completed_successfully
+    network_mode: host
 
   gsa:
     image: registry.community.greenbone.net/community/gsa:stable
@@ -94,9 +105,8 @@ services:
       - gvmd_socket_vol:/run/gvmd
     depends_on:
       - gvmd
-  # Sets log level of openvas to the set LOG_LEVEL within the env
-  # and changes log output to /var/log/openvas instead /var/log/gvm
-  # to reduce likelyhood of unwanted log interferences
+    network_mode: host
+
   configure-openvas:
     image: registry.community.greenbone.net/community/openvas-scanner:stable
     volumes:
@@ -112,9 +122,8 @@ services:
         chmod 644 /mnt/openvas_log.conf
         touch /var/log/openvas/openvas.log
         chmod 666 /var/log/openvas/openvas.log
-    network_mode: "host"
+    network_mode: host
 
-  # shows logs of openvas
   openvas:
     image: registry.community.greenbone.net/community/openvas-scanner:stable
     restart: on-failure
@@ -130,13 +139,12 @@ services:
     depends_on:
       configure-openvas:
         condition: service_completed_successfully
+    network_mode: host
 
   openvasd:
     image: registry.community.greenbone.net/community/openvas-scanner:stable
     restart: on-failure
     environment:
-      # `service_notus` is set to disable everything but notus,
-      # if you want to utilize openvasd directly removed `OPENVASD_MODE`
       OPENVASD_MODE: service_notus
       GNUPGHOME: /etc/openvas/gnupg
       LISTENING: 0.0.0.0:80
@@ -145,9 +153,6 @@ services:
       - openvas_log_data_vol:/var/log/openvas
       - gpg_data_vol:/etc/openvas/gnupg
       - notus_data_vol:/var/lib/notus
-    # enable port forwarding when you want to use the http api from your host machine
-    # ports:
-    #   - 127.0.0.1:3000:80
     depends_on:
       vulnerability-tests:
         condition: service_completed_successfully
@@ -155,18 +160,15 @@ services:
         condition: service_completed_successfully
       gpg-data:
         condition: service_completed_successfully
-    networks:
-      default:
-        aliases:
-          - openvasd
+    network_mode: host
 
   ospd-openvas:
     image: registry.community.greenbone.net/community/ospd-openvas:stable
     restart: on-failure
     hostname: ospd-openvas.local
     cap_add:
-      - NET_ADMIN # for capturing packages in promiscuous mode
-      - NET_RAW # for raw sockets e.g. used for the boreas alive detection
+      - NET_ADMIN
+      - NET_RAW
     security_opt:
       - seccomp=unconfined
       - apparmor=unconfined
@@ -198,6 +200,7 @@ services:
         condition: service_completed_successfully
       configure-openvas:
         condition: service_completed_successfully
+    network_mode: host
 
   gvm-tools:
     image: registry.community.greenbone.net/community/gvm-tools
@@ -207,6 +210,7 @@ services:
     depends_on:
       - gvmd
       - ospd-openvas
+    network_mode: host
 
 volumes:
   gpg_data_vol:
